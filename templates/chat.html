@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.1.0/css/all.css"
+          integrity="sha384-lKuwvrZot6UHsBSfcMvOkWwlCMgc0TaWr+30HWe3a4ltaBwTZhyTEggF5tJv8tbt" crossorigin="anonymous">
+    <title>Chat</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="body-chat" bgcolor=#a1c0d6>
+<header class="top-header chat-header">
+    <div class="header__top">
+        <div class="header__column">
+            <i class="fas fa-fighter-jet"></i>
+            <i class="fas fa-wifi"></i>
+        </div>
+        <div class="header__column">
+            <span class="header__time"></span>
+        </div>
+        <div class="header__column">
+            <i class="far fa-moon"></i>
+            <i class="fab fa-bluetooth-b"></i>
+            <span class="header__battery">66* <i class="fas fa-battery-full"></i> </span>
+        </div>
+    </div>
+    <div class="header__bottom">
+        <div class="header__column">
+            <a href="chats.html">
+                <i class="fas fa-chevron-left fa-lg"></i>
+            </a>
+        </div>
+        <div class="header__column">
+            <span class="header__text">챗봇</span>
+        </div>
+        <div class="header__column">
+            <i class="fas fa-search fa-lg"></i>
+            <i class="fas fa-bars fa-lg"></i>
+        </div>
+    </div>
+</header>
+<main class="chat">
+    <div class="date-divider">
+        <span class="date-divider__text"></span>
+    </div>
+</main>
+<div class="type-message">
+    <i class="fas fa-plus fa-lg"></i>
+    <div class="type-message__input">
+        <input type="text" id="message">
+        <i class="far fa-smile fa-lg"></i>
+        <span class="record-message">
+        <i class="fas fa-microphone fa-lg" id="record"></i>
+      </span>
+    </div>
+</div>
+
+</body>
+<script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+        crossorigin="anonymous"></script>
+<script>
+$(document).ready(function() {
+    let today = new Date();
+    let year = today.getFullYear();
+    let month = today.getMonth() + 1;
+    let date = today.getDate();
+    let day = today.getDay();
+    let hours = today.getHours();
+    let minutes = today.getMinutes();
+
+    if (day === 1) {
+        day = '월요일'
+    } else if (day === 2) {
+        day = '화요일'
+    } else if (day === 3) {
+        day = '수요일'
+    } else if (day === 4) {
+        day = '목요일'
+    } else if (day === 5) {
+        day = '금요일'
+    } else if (day === 6) {
+        day = '토요일'
+    } else if (day === 7) {
+        day = '일요일'
+    }
+    $(".date-divider__text").html(year + '년 ' + month + '월 ' + date + '일, ' + day);
+    $(".header__time").html(hours + ':' + minutes);
+});
+
+
+$("#message").keydown(function(e) {
+    if (e.keyCode === 13) {
+        let today = new Date();
+        let hours = today.getHours();
+        let minutes = today.getMinutes();
+
+        $(".chat").append('<div class="chat__message chat__message-from-me"><span class="chat__message-time">' + hours + ':' + minutes + '</span><span class="chat__message-body">' + $("#message").val() + '</span></div>');
+
+        // 메시지를 비동기로 보내는 곳
+        $.ajax({
+                url: "/chatbot",
+                data: '{"message":"' + $("#message").val() + '"}',
+                type: "POST",
+                dataType: "json"
+            })
+            .done(function(json) {
+                // 메시지를 받는 곳
+                let today = new Date();
+                let hours = today.getHours();
+                let minutes = today.getMinutes();
+                $(".chat").append('<div class="chat__message chat__message-to-me"><img src="/static/images/avatar.jpg" alt="" class="chat__message-avatar"><div class="chat__message-center"><h3 class="chat__message-username">챗봇</h3><span class="chat__message-body">' + json.message + '</span></div><span class="chat__message-time">' + hours + ':' + minutes + '</span></div>');
+                // 받을 때 스크롤 맨 밑으로
+                $(document).scrollTop($(".chat").height());
+            });
+
+
+        // 보낼 때 스크롤 맨 밑으로
+        $(document).scrollTop($(".chat").height());
+
+        // 입력창 비우기
+        $("#message").val("");
+    }
+});
+const $btn = document.querySelector("#record");
+let isRecording = false;
+let mediaRecorder = null;
+const audioArray = [];
+$btn.onclick = async function(event) {
+    if (!isRecording) {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: true
+        });
+
+        mediaRecorder = new MediaRecorder(mediaStream);
+        mediaRecorder.ondataavailable = (event) => {
+            audioArray.push(event.data);
+        }
+        mediaRecorder.onstop = (event) => {
+            const blob = new Blob(audioArray, {
+                "type": "audio/ogg codecs=opus"
+            });
+            var fd = new FormData();
+            fd.append('data', blob);
+            console.log("보냄");
+            $.ajax({
+                    url: "/audio",
+                    data: fd,
+                    type: "POST",
+                    processData: false,
+                    contentType: false
+                })
+                .done(function(json) {
+                    console.log("받음");
+                    let today = new Date();
+                    let hours = today.getHours();
+                    let minutes = today.getMinutes();
+                    let id = "audio" + Math.floor(Math.random() * 101);
+                    $(".chat").append('<div class="chat__message chat__message-to-me"><img src="/static/images/avatar.jpg" alt="" class="chat__message-avatar"><div class="chat__message-center"><h3 class="chat__message-username">챗봇</h3><audio id="' + id + '" controls>녹음된 소리를 재생할 audio 엘리먼트</audio></div><span class="chat__message-time">' + hours + ':' + minutes + '</span></div>');
+                    // 받을 때 스크롤 맨 밑으로
+                    $(document).scrollTop($(".chat").height());
+                    let $audioEl = document.querySelector("#" + id);
+                    $audioEl.src = "http://localhost:8000/media/"+json.message;
+                    $audioEl.play();
+                });
+            audioArray.splice(0);
+        }
+        mediaRecorder.start();
+        isRecording = true;
+        console.log("녹음 시작");
+    } else {
+        mediaRecorder.stop();
+        isRecording = false;
+    }
+}
+</script>
+
+</html>
